@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mood Playground | Loki</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+    <!-- Header / Nav (Minimal) -->
+    <header class="header">
+        <div class="logo">
+            <span class="logo-accent">Loki</span>
+        </div>
+        <button class="hamburger" aria-label="Toggle Menu">
+            <span class="bar"></span>
+            <span class="bar"></span>
+            <span class="bar"></span>
+        </button>
+        <nav class="nav">
+            <a href="#about">About</a>
+            <a href="#offerings">Offerings</a>
+            <a href="#testimonials">Testimonials</a>
+            <a href="#developed-by">Developed By</a>
+            <a href="#contact">Contact</a>
+            <button id="themeToggle" class="theme-toggle" aria-label="Toggle Theme">
+                <div class="toggle-track">
+                    <div class="toggle-indicator"></div>
+                </div>
+            </button>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero" id="home">
+        <canvas id="waveformCanvas"></canvas>
+        <div class="hero-content">
+            <p class="hero-subtitle">Transforming Your Mood</p>
+            <h1 class="hero-title">Welcome to Mood Playground</h1>
+            <button id="getStartedBtn" class="btn btn-primary">Get Started</button>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section class="about" id="about">
+        <div class="container">
+            <div class="about-grid">
+                <div class="about-text">
+                    <h2>Our Vision and Mission</h2>
+                    <p>At Loki Technologies, we believe technology should feel human, intuitive, and inspiring. Our
+                        mission is to design interactive platforms that blend creativity with innovation — helping
+                        people connect with their emotions, discover new experiences, and enjoy seamless digital
+                        journeys.</p>
+                    <p>With a focus on security, scalability, and delightful user experiences, Loki Technologies
+                        empowers individuals and businesses to explore, express, and grow in a smarter, more sustainable
+                        way.</p>
+                    <a href="playground/index.html" class="btn btn-secondary">TRY NOW</a>
+                </div>
+                <div class="about-visuals">
+                    <div class="geo-shape circle"></div>
+                    <div class="geo-shape diamond"></div>
+                    <div class="geo-shape arrow"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Offerings Section -->
+    <section class="offerings" id="offerings">
+        <div class="container">
+            <h2 class="section-title">Our Offerings</h2>
+            <div class="cards-grid">
+                <div class="card">
+                    <div class="card-icon">✧</div>
+                    <h3>Intuitive Interface</h3>
+                    <p>Our flagship product boasts an intuitive interface that simplifies complex data analytics,
+                        providing key insights for better decision-making.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">◎</div>
+                    <h3>What We Provide</h3>
+                    <p>At Loki Technologies, we create interactive platforms that blend creativity with innovation. Our
+                        solutions bring emotions to life through vibrant themes, personalized experiences, and playful
+                        animations.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">♫</div>
+                    <h3>Voice & Sound Integration</h3>
+                    <p>Our Voice & Sound Integration brings your experience to life with a friendly AI voice that greets
+                        and guides you, paired with playful sound effects and mood-based music.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section class="testimonials" id="testimonials">
+        <div class="container">
+            <h2 class="section-title">Testimonials</h2>
+            <div class="testimonials-grid">
+                <div class="testimonial-card">
+                    <p class="quote">"Mood Playground by Loki Technologies completely transformed how I start my day.
+                        The interactive moods and cheerful voice assistant make me feel energized."</p>
+                    <div class="author">
+                        <span class="name">Sarah M.</span>
+                        <span class="role">Product Designer</span>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <p class="quote">"I love how intuitive and professional the platform feels. Switching moods is
+                        seamless, and the animations add a playful touch."</p>
+                    <div class="author">
+                        <span class="name">Alice Smith</span>
+                        <span class="role">COO at InnovateTech</span>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <p class="quote">"Loki Technologies has built something truly unique. The combination of mood
+                        tracking and personalized greetings helps me reflect and recharge."</p>
+                    <div class="author">
+                        <span class="name">Priya K.</span>
+                        <span class="role">Entrepreneur</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQs Section -->
+    <section class="faqs" id="faqs">
+        <div class="container">
+            <h2 class="section-title">FAQs</h2>
+            <div class="faq-item">
+                <h3>What is Mood Playground?</h3>
+                <p>Mood Playground is an interactive platform by Loki Technologies that lets you explore different moods
+                    through vibrant themes, playful animations, and personalized experiences.</p>
+            </div>
+            <div class="faq-item">
+                <h3>How does the AI voice assistant work?</h3>
+                <p>Our friendly AI voice greets you, asks how you're feeling, and responds with mood-based visuals,
+                    sounds, and animations. It even shows a waveform animation while speaking.</p>
+            </div>
+            <div class="faq-item">
+                <h3>Can I personalize my experience?</h3>
+                <p>Yes! You can enter your name to receive personalized greetings, track your moods over time, and enjoy
+                    tailored quotes, jokes, and surprises.</p>
+            </div>
+            <div class="faq-item">
+                <h3>Can I use Mood Playground on mobile?</h3>
+                <p>Yes, the platform is fully responsive and works smoothly on both desktop and mobile devices.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Developed By Section -->
+    <section class="developed-by" id="developed-by">
+        <div class="container">
+            <h2 class="section-title">Developed By</h2>
+            <div class="devs-grid">
+                <div class="dev-card">
+                    <div class="dev-image">
+                        <img src="images/Sundar.jpg" alt="M. Sundaramoorthi">
+                    </div>
+                    <div class="dev-info">
+                        <h3>M. Sundaramoorthi</h3>
+                        <p class="dev-role">Lead Developer</p>
+                        <p class="dev-id">24UCA143</p>
+                    </div>
+                </div>
+                <div class="dev-card">
+                    <div class="dev-image">
+                        <img src="images/Siva.jpg" alt="K. Siva Manikandan">
+                    </div>
+                    <div class="dev-info">
+                        <h3>K. Siva Manikandan</h3>
+                        <p class="dev-role">Audio Engineer</p>
+                        <p class="dev-id">24UCA141</p>
+                    </div>
+                </div>
+                <div class="dev-card">
+                    <div class="dev-image">
+                        <img src="images/selva.jpg" alt="M. Selvavineshwaran">
+                    </div>
+                    <div class="dev-info">
+                        <h3>M. Selvavigneshwaran</h3>
+                        <p class="dev-role">Tester</p>
+                        <p class="dev-id">24UCA140</p>
+                    </div>
+                </div>
+                <div class="dev-card">
+                    <div class="dev-image">
+                        <img src="images/Deena.jpg" alt="V. Deena Dayalan">
+                    </div>
+                    <div class="dev-info">
+                        <h3>V. Deena Dayalan</h3>
+                        <p class="dev-role">Audio Engineer</p>
+                        <p class="dev-id">24UCA132</p>
+                    </div>
+                </div>
+                <div class="dev-card">
+                    <div class="dev-image">
+                        <img src="images/Akash.jpg" alt="Akash A">
+                    </div>
+                    <div class="dev-info">
+                        <h3>Akash A</h3>
+                        <p class="dev-role">Tester</p>
+                        <p class="dev-id">24UCA129</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section class="contact" id="contact">
+        <div class="container">
+            <h2 class="section-title">Contact Us Today</h2>
+            <form class="contact-form" id="contactForm" action="https://formspree.io/f/24uca143@anjaconline.org"
+                method="POST">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="firstName">First Name</label>
+                        <input type="text" id="firstName" name="firstName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="lastName">Last Name</label>
+                        <input type="text" id="lastName" name="lastName" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email *</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone</label>
+                    <input type="tel" id="phone" name="phone">
+                </div>
+                <div class="form-group">
+                    <label for="message">Message</label>
+                    <textarea id="message" name="message" rows="4"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary btn-submit">Submit</button>
+            </form>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container footer-content">
+            <div class="footer-brand">
+                <h4>Loki</h4>
+                <p>Stay Connected with Us</p>
+                <form class="newsletter-form">
+                    <label for="newsletter-email" class="sr-only">Enter Your Email Address</label>
+                    <input type="email" id="newsletter-email" placeholder="Enter Your Email Address">
+                    <button type="submit" class="btn btn-small">Subscribe</button>
+                </form>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="newsletter-opt-in">
+                    <label for="newsletter-opt-in">Yes, Subscribe me to newsletter</label>
+                </div>
+            </div>
+            <div class="footer-info">
+                <p>24uca143@anjaconline.org</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2026 by Loki Technologies</p>
+            <div class="legal-links">
+                <a href="#">Privacy Policy</a>
+                <a href="#">Accessibility Statement</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
