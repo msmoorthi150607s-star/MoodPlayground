@@ -58,6 +58,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Chat AI History
     let chatHistory = []; // Stores objects: { role: 'user'|'assistant', text: '...' }
 
+    // Music control state
+    let pendingMusicMood = null;
+
     // Each option is tagged with the mood it strongly signals.
     // moodMap[i] = mood weight array matching the options of question i.
     const discoveryQuestions = {
@@ -1208,10 +1211,16 @@ document.addEventListener('DOMContentLoaded', () => {
             void aiResponse.parentElement.offsetWidth;
             aiResponse.parentElement.style.animation = 'fadeIn 0.5s ease-out';
 
-            // Sequence: Speak -> Then Music
-            speak(responseText, () => {
-                playMoodMusic(moodKey);
-            });
+            // Sequence: Speak -> Then Ask for music
+            const musicPrompt = {
+                ta: "நான் உங்களுக்காக இந்த மனநிலைக்கு ஏற்ற இசையை ஒலிக்கச் செய்யவா? (ஆம்/இல்லை)",
+                en: "Would you like me to play some music for this mood? (Yes/No)"
+            };
+
+            const fullResponse = `${responseText} ${musicPrompt[currentLang]}`;
+            pendingMusicMood = moodKey; // Store for later if they say yes
+
+            speak(fullResponse);
 
             // Confetti for Happy
             if (moodKey === 'happy') {
@@ -1223,10 +1232,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
         } else {
-            playMoodMusic(moodKey);
+            // No direct auto-play even in non-animate mode
+            pendingMusicMood = moodKey;
         }
 
-        typeWriter(aiResponse, responseText);
+        typeWriter(aiResponse, responseText + " " + (currentLang === 'ta' ? "நான் இசை ஒலிக்கவா?" : "Should I play music?"));
         updateQuote();
 
         if (quoteInterval) clearInterval(quoteInterval);
@@ -1343,6 +1353,40 @@ document.addEventListener('DOMContentLoaded', () => {
         // Route to discovery mode if active
         if (isDiscoveryMode) {
             await handleDiscoveryResponse(text);
+            return;
+        }
+
+        // Music Control Recognition
+        const stopKeywords = ['stop music', 'music stop', 'pause music', 'off music', 'இசையை நிறுத்து', 'பாடலை நிறுத்து', 'நிறுத்து', 'இசை வேண்டாம்'];
+        const playKeywords = ['play music', 'start music', 'music on', 'இசையை ஒலிக்கச் செய்', 'பாடலை ஒடு', 'இசை வேண்டும்', 'ஒலிக்கச் செய்'];
+        const yesKeywords = ['yes', 'yeah', 'sure', 'okay', 'yep', 'ok', 'ஆம்', 'சரி', 'நிச்சயமாக'];
+        const noKeywords = ['no', 'not now', 'nah', 'இல்லை', 'வேண்டாம்'];
+
+        if (stopKeywords.some(kw => input.includes(kw))) {
+            audioPlayer.pause();
+            playPauseBtn.textContent = '▶️';
+            playerBar.classList.add('paused');
+            const msg = currentLang === 'ta' ? "இசை நிறுத்தப்பட்டது." : "Music stopped.";
+            typeWriter(aiResponse, msg);
+            speak(msg);
+            return;
+        }
+
+        if (playKeywords.some(kw => input.includes(kw)) || (pendingMusicMood && yesKeywords.some(kw => input.includes(kw)))) {
+            const moodToPlay = pendingMusicMood || currentMood || 'happy';
+            playMoodMusic(moodToPlay);
+            pendingMusicMood = null;
+            const msg = currentLang === 'ta' ? "நிச்சயமாக, இசையை ஒலிக்கச் செய்கிறேன்!" : "Sure, starting the music for you!";
+            typeWriter(aiResponse, msg);
+            speak(msg);
+            return;
+        }
+
+        if (pendingMusicMood && noKeywords.some(kw => input.includes(kw))) {
+            pendingMusicMood = null;
+            const msg = currentLang === 'ta' ? "சரி, உங்களுக்கு இசை தேவைப்படும்போது சொல்லுங்கள்." : "Alright, let me know when you'd like some music.";
+            typeWriter(aiResponse, msg);
+            speak(msg);
             return;
         }
 
