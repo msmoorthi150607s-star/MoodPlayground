@@ -9,6 +9,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const moodTextInput = document.getElementById('mood-text-input');
     const voiceInputBtn = document.getElementById('voice-input-btn');
     const aiResponse = document.getElementById('ai-response').querySelector('p');
+
+    // Protocol Check: Warn if running via file:// (CORS blocker)
+    if (window.location.protocol === 'file:') {
+        const corsWarning = "Note: AI features may be blocked when opening the file directly. Please use a local server.";
+        aiResponse.textContent = corsWarning;
+        console.warn("CORS Risk: Running via file:// protocol. AI API calls will likely fail.");
+    }
     const songTitle = document.getElementById('song-title');
     const moodLabel = document.getElementById('mood-label');
     const wallpaperOverlay = document.getElementById('wallpaper-overlay');
@@ -48,49 +55,84 @@ document.addEventListener('DOMContentLoaded', () => {
     let discoveryStep = 0;
     let discoveryResponses = [];
 
+    // Chat AI History
+    let chatHistory = []; // Stores objects: { role: 'user'|'assistant', text: '...' }
+
+    // Each option is tagged with the mood it strongly signals.
+    // moodMap[i] = mood weight array matching the options of question i.
     const discoveryQuestions = {
         en: [
             {
                 q: "How did you feel when you woke up this morning?",
-                options: ["Restless and frustrated", "Full of energy and excitement", "Very slow and tired", "Calm and peaceful"]
+                options: ["Restless and frustrated", "Full of energy and excitement", "Very slow and sad", "Calm and peaceful"],
+                moodMap: ['angry', 'energetic', 'sad', 'relaxed']
             },
             {
                 q: "What's the main thing on your mind right now?",
-                options: ["A special someone or love", "Work, goals, and success", "A problem that is bothering me", "I'm just vibing and relaxing"]
+                options: ["A special someone or love", "Work, goals, and success", "A problem that is bothering me", "I'm just vibing and relaxing"],
+                moodMap: ['romantic', 'motivation', 'sad', 'relaxed']
             },
             {
                 q: "If you had to describe your energy level, what would it be?",
-                options: ["Super high - Ready to dance!", "Determined and focused", "Low - Just want to hide", "Stable and balanced"]
+                options: ["Super high - Ready to dance!", "Determined and focused", "Low - Just want to hide", "Stable and balanced"],
+                moodMap: ['energetic', 'motivation', 'alone', 'relaxed']
             },
             {
                 q: "What kind of weather matches your current vibe?",
-                options: ["Bright sunshine", "Thunder and lightning", "Gentle rain", "Cloudy and mysterious"]
+                options: ["Bright sunshine", "Thunder and lightning", "Gentle rain and sadness", "Cloudy and mysterious"],
+                moodMap: ['happy', 'angry', 'sad', 'alone']
+            },
+            {
+                q: "Which best describes your mood right now?",
+                options: ["Joyful and celebratory!", "Inspired and driven", "Heartbroken or in need of comfort", "In love or thinking of someone special"],
+                moodMap: ['happy', 'motivation', 'sad', 'romantic']
             },
             {
                 q: "What do you need right now?",
-                options: ["A celebration with confetti!", "Motivation to keep going", "A hug or some comfort", "To just be alone in my thoughts"]
+                options: ["A celebration with confetti!", "Motivation to keep going", "A hug or some comfort", "To just be alone in my thoughts"],
+                moodMap: ['happy', 'motivation', 'sad', 'alone']
+            },
+            {
+                q: "How would you describe your inner world right now?",
+                options: ["Peaceful and spiritual", "Angry and restless", "In love and warm", "Energized and unstoppable"],
+                moodMap: ['devotional', 'angry', 'romantic', 'energetic']
             }
         ],
         ta: [
             {
                 q: "இன்று காலை எழுந்தபோது நீங்கள் எப்படி உணர்ந்தீர்கள்?",
-                options: ["நிம்மதியின்றி மற்றும் ஏமாற்றமாக", "ஆற்றல் மற்றும் உற்சாகத்துடன்", "மிகவும் நிதானமாக மற்றும் சோர்வாக", "அமைதி மற்றும் நிம்மதியாக"]
+                options: ["நிம்மதியின்றி மற்றும் ஏமாற்றமாக", "ஆற்றல் மற்றும் உற்சாகத்துடன்", "மிகவும் நிதானமாக மற்றும் சோர்வாக", "அமைதி மற்றும் நிம்மதியாக"],
+                moodMap: ['angry', 'energetic', 'sad', 'relaxed']
             },
             {
                 q: "இப்போது உங்கள் மனதில் ஓடும் முக்கியமான விஷயம் என்ன?",
-                options: ["ஒரு சிறப்பு நபர் அல்லது காதல்", "வேலை, இலக்குகள் மற்றும் வெற்றி", "என்னைத் தொந்தரவு செய்யும் ஒரு பிரச்சனை", "நான் சும்மா ரிலாக்ஸாக இருக்கிறேன்"]
+                options: ["ஒரு சிறப்பு நபர் அல்லது காதல்", "வேலை, இலக்குகள் மற்றும் வெற்றி", "என்னைத் தொந்தரவு செய்யும் ஒரு பிரச்சனை", "நான் சும்மா ரிலாக்ஸாக இருக்கிறேன்"],
+                moodMap: ['romantic', 'motivation', 'sad', 'relaxed']
             },
             {
                 q: "உங்கள் ஆற்றல் அளவை எப்படி விவரிப்பீர்கள்?",
-                options: ["மிகவும் அதிகம் - ஆடத் தயார்!", "உறுதி மற்றும் கவனம்", "குறைவு - மறைந்து கொள்ள விரும்புகிறேன்", "நிலையான மற்றும் சீரான"]
+                options: ["மிகவும் அதிகம் - ஆடத் தயார்!", "உறுதி மற்றும் கவனம்", "குறைவு - மறைந்து கொள்ள விரும்புகிறேன்", "நிலையான மற்றும் சீரான"],
+                moodMap: ['energetic', 'motivation', 'alone', 'relaxed']
             },
             {
                 q: "இப்போது உங்கள் மனநிலைக்கு எந்தத் காலநிலை பொருந்தும்?",
-                options: ["பிரகாசமான சூரிய ஒளி", "இடி மற்றும் மின்னல்", "லேசான மழை", "மேகமூட்டம் மற்றும் மர்மமானது"]
+                options: ["பிரகாசமான சூரிய ஒளி", "இடி மற்றும் மின்னல்", "லேசான மழை மற்றும் சோகம்", "மேகமூட்டம் மற்றும் மர்மமானது"],
+                moodMap: ['happy', 'angry', 'sad', 'alone']
+            },
+            {
+                q: "இப்போது உங்கள் மனநிலை எவ்வாறு உள்ளது?",
+                options: ["மகிழ்ச்சியாகவும் கொண்டாட்டமாகவும்!", "ஊக்கம் மற்றும் உந்துதலுடன்", "இதயம் வலிக்கிறது அல்லது ஆறுதல் தேவை", "காதல் அல்லது யாரையாவது நினைத்துக்கொண்டிருக்கிறேன்"],
+                moodMap: ['happy', 'motivation', 'sad', 'romantic']
             },
             {
                 q: "இப்போது உங்களுக்கு என்ன தேவை?",
-                options: ["கொண்டாட்டம் மற்றும் கொண்டாட்டம்!", "தொடர்ந்து முன்னேற உத்வேகம்", "ஒரு கட்டிப்பிடிப்பு அல்லது ஆறுதல்", "தனிமையில் சிந்திக்க விரும்புவது"]
+                options: ["கொண்டாட்டம் மற்றும் கொண்டாட்டம்!", "தொடர்ந்து முன்னேற உத்வேகம்", "ஒரு கட்டிப்பிடிப்பு அல்லது ஆறுதல்", "தனிமையில் சிந்திக்க விரும்புவது"],
+                moodMap: ['happy', 'motivation', 'sad', 'alone']
+            },
+            {
+                q: "இப்போது உங்கள் உள்ளுணர்வு எப்படி உள்ளது?",
+                options: ["அமைதி மற்றும் பக்திமயமாக", "கோபம் மற்றும் அமைதியின்மை", "காதல் மற்றும் அன்பு", "ஆற்றல் மற்றும் உற்சாகம்"],
+                moodMap: ['devotional', 'angry', 'romantic', 'energetic']
             }
         ]
     };
@@ -248,7 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     { text: "Enjoy what you have, don't worry about what you don't.", author: "Unknown" }
                 ]
             },
-            keywords: ['happy', 'joy', 'good', 'great', 'awesome', 'wonderful', 'smiling', 'cheerful', 'மகிழ்ச்சி', 'சந்தோஷம்']
+            keywords: ['happy', 'happiness', 'joy', 'joyful', 'joyous', 'good', 'great', 'awesome', 'wonderful', 'amazing', 'fantastic', 'excellent', 'smiling', 'smile', 'cheerful', 'elated', 'delighted', 'thrilled', 'glad', 'pleased', 'excited', 'laughing', 'laugh', 'blessed', 'grateful', 'content', 'ecstatic', 'blissful', 'overjoyed', 'upbeat', 'bright', 'positive', 'மகிழ்ச்சி', 'சந்தோஷம்', 'கொண்டாட்டம்', 'நலமாக', 'மகிழ்வாக']
         },
         sad: {
             emoji: '😢',
@@ -302,7 +344,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     { text: "Rise up and start again.", author: "Unknown" }
                 ]
             },
-            keywords: ['sad', 'unhappy', 'crying', 'low', 'depressed', 'lonely', 'broken', 'bad', 'சோகம்', 'வருத்தம்']
+            keywords: ['sad', 'sadness', 'unhappy', 'unhappiness', 'crying', 'cry', 'weeping', 'tears', 'low', 'down', 'blue', 'depressed', 'depression', 'lonely', 'loneliness', 'broken', 'heartbroken', 'hurt', 'pain', 'suffering', 'grief', 'grieve', 'gloomy', 'miserable', 'hopeless', 'hopelessness', 'distressed', 'sorrowful', 'melancholy', 'bad', 'terrible', 'awful', 'devastated', 'shattered', 'lost', 'empty', 'numb', 'சோகம்', 'வருத்தம்', 'கவலை', 'துக்கம்', 'அழுகிறேன்', 'சோர்வு', 'வலி']
         },
         romantic: {
             emoji: '😍',
@@ -355,7 +397,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     { text: "My heart seeks you.", author: "Unknown" }
                 ]
             },
-            keywords: ['love', 'romantic', 'loved', 'crush', 'heart', 'sweet', 'காதல்', 'அன்பு']
+            keywords: ['love', 'loving', 'romantic', 'romance', 'loved', 'in love', 'crush', 'heart', 'sweet', 'darling', 'honey', 'affection', 'affectionate', 'adore', 'adoration', 'infatuation', 'relationship', 'partner', 'girlfriend', 'boyfriend', 'date', 'dating', 'kiss', 'hug', 'miss you', 'missing', 'passionate', 'intimate', 'desire', 'charming', 'beautiful', 'cute', 'lovely', 'சுட்டி', 'காதல்', 'அன்பு', 'காதலி', 'காதலன்', 'நேசிக்கிறேன்', 'இதயம்']
         },
         energetic: {
             emoji: '😎',
@@ -407,7 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     { text: "Reach new heights.", author: "Unknown" }
                 ]
             },
-            keywords: ['energetic', 'pumped', 'active', 'hyped', 'power', 'strong', 'உற்சாகம்', 'வேகம்']
+            keywords: ['energetic', 'energy', 'pumped', 'pump', 'active', 'hyped', 'hype', 'power', 'powerful', 'strong', 'strength', 'fired up', 'amped', 'dynamic', 'lively', 'vigorous', 'vibrant', 'unstoppable', 'beast', 'turbo', 'dance', 'dancing', 'party', 'fun', 'wired', 'buzzing', 'on fire', 'ready', 'rocking', 'উৎসাহী', 'உற்சாகம்', 'வேகம்', 'ஆடத் தயார்', 'பரபரப்பு', 'துடிப்பு']
         },
         relaxed: {
             emoji: '😌',
@@ -459,7 +501,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     { text: "Prayer brings peace.", author: "Unknown" }
                 ]
             },
-            keywords: ['relaxed', 'calm', 'peaceful', 'chill', 'quiet', 'rested', 'lazy', 'அமைதி', 'நிதானம்']
+            keywords: ['relaxed', 'relaxing', 'calm', 'calmness', 'peaceful', 'peace', 'chill', 'chilled', 'chilling', 'quiet', 'rested', 'rest', 'lazy', 'laid back', 'mellow', 'serene', 'tranquil', 'soothing', 'gentle', 'easy', 'comfortable', 'cozy', 'cosy', 'zen', 'still', 'stress free', 'no stress', 'unbothered', 'at ease', 'tension free', 'அமைதி', 'நிதானம்', 'சாந்தம்', 'ரிலாக்ஸ்', 'நிம்மதி', 'பயமில்லை']
         },
         angry: {
             emoji: '😠',
@@ -511,7 +553,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     { text: "Let's think calmly.", author: "Unknown" }
                 ]
             },
-            keywords: ['angry', 'mad', 'furious', 'annoyed', 'pissed', 'hate', 'rage', 'கோபம்', 'எரிச்சல்']
+            keywords: ['angry', 'anger', 'mad', 'furious', 'fury', 'annoyed', 'annoy', 'pissed', 'hate', 'hatred', 'rage', 'raging', 'livid', 'frustrated', 'frustration', 'irritated', 'irritation', 'agitated', 'outraged', 'offended', 'bitter', 'resentful', 'hostile', 'aggressive', 'violent', 'explosive', 'boiling', 'fed up', 'done with', 'sick of', 'enough', 'unfair', 'ridiculous', 'கோபம்', 'எரிச்சல்', 'கோபமாக', 'கோபப்படுகிறேன்', 'ஆத்திரம்', 'இடி']
         },
         alone: {
             emoji: '👤',
@@ -563,7 +605,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     { text: "Solitude is not weakness, it's strength.", author: "Unknown" }
                 ]
             },
-            keywords: ['alone', 'solitude', 'lonely', 'single', 'independent', 'தனிமை']
+            keywords: ['alone', 'solitude', 'lonely', 'loneliness', 'single', 'independent', 'isolated', 'isolation', 'withdrawn', 'secluded', 'introvert', 'antisocial', 'quiet time', 'me time', 'no one', 'nobody', 'by myself', 'on my own', 'left out', 'excluded', 'invisible', 'forgotten', 'ignored', 'missing company', 'disconnected', 'தனிமை', 'தனியாக', 'ஒருவரும் இல்லை', 'தனிமையாக', 'யாரும் இல்லை']
         },
         motivation: {
             emoji: '🔥',
@@ -615,7 +657,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     { text: "You are an achiever.", author: "Unknown" }
                 ]
             },
-            keywords: ['motivation', 'focus', 'work', 'success', 'inspired', 'goal', 'உத்வேகம்', 'வெற்றி']
+            keywords: ['motivation', 'motivated', 'motivate', 'inspire', 'inspired', 'inspiration', 'focus', 'focused', 'work', 'working', 'success', 'successful', 'achieve', 'achievement', 'goal', 'goals', 'target', 'ambition', 'ambitious', 'hustle', 'grind', 'push', 'drive', 'determined', 'determination', 'productive', 'productivity', 'discipline', 'consistent', 'warrior', 'champion', 'conquer', 'dream', 'dreaming', 'vision', 'உத்வேகம்', 'வெற்றி', 'கடின உழைப்பு', 'இலக்கு', 'வெற்றிடம்', 'முன்னேற்றம்']
         },
         devotional: {
             emoji: '🙏',
@@ -653,7 +695,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     { text: "Meditation brings clarity to the mind.", author: "Unknown" }
                 ]
             },
-            keywords: ['devotional', 'god', 'prayer', 'spiritual', 'temple', 'faith', 'பக்தி', 'கடவுள்', 'பிரார்த்தனை']
+            keywords: ['devotional', 'devotion', 'god', 'prayer', 'pray', 'praying', 'spiritual', 'spirituality', 'temple', 'church', 'mosque', 'faith', 'religious', 'religion', 'worship', 'bless', 'blessed', 'divine', 'meditation', 'meditate', 'mantra', 'yoga', 'peaceful prayer', 'holy', 'sacred', 'grace', 'பக்தி', 'கடவுள்', 'பிரார்த்தனை', 'கோவில்', 'வணக்கம்', 'ஆண்டவன்', 'தியானம்', 'இறை', 'சிவம்', 'முருகன்']
         }
     };
 
@@ -860,7 +902,9 @@ document.addEventListener('DOMContentLoaded', () => {
         discoveryStep = 0;
         discoveryResponses = [];
         discoveryBtn.classList.add('active');
-        discoveryBtn.innerHTML = '<span class="sparkle">❌</span> Stop Session';
+
+        const stopBtnText = currentLang === 'ta' ? "அமைர்வை நிறுத்து" : "Stop Session";
+        discoveryBtn.innerHTML = `<span class="sparkle">❌</span> ${stopBtnText}`;
 
         const firstQuestion = discoveryQuestions[currentLang][0].q;
         typeWriter(aiResponse, firstQuestion);
@@ -871,7 +915,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function endMoodDiscovery() {
         isDiscoveryMode = false;
         discoveryBtn.classList.remove('active');
-        discoveryBtn.innerHTML = '<span class="sparkle">✨</span> Find Your Mood with Me';
+
+        const startBtnText = currentLang === 'ta' ? "என்னுடன் உங்கள் மனநிலையைக் கண்டறியவும்" : "Find Your Mood with Me";
+        discoveryBtn.innerHTML = `<span class="sparkle">✨</span> ${startBtnText}`;
+
         discoveryOptionsGrid.classList.remove('active');
         typeWriter(aiResponse, currentLang === 'ta' ? "சரி, நாம் மீண்டும் எப்போது வேண்டுமானாலும் தொடரலாம்!" : "Alright, we can continue anytime!");
     }
@@ -912,20 +959,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function analyzeMoodFromSession() {
-        const sessionContext = discoveryResponses.map((resp, i) => `Q: ${discoveryQuestions[currentLang][i].q} A: ${resp}`).join('\\n');
+        // Primary: use smart heuristic on the option-index mood map (reliable, instant)
+        const heuristicKey = heuristicMoodDetection();
+        console.log("Heuristic detected mood:", heuristicKey);
+
+        // Build context string for optional API call (fix \n escape bug)
+        const sessionContext = discoveryResponses.map((resp, i) => `Q: ${discoveryQuestions[currentLang][i].q} A: ${resp}`).join('\n');
         console.log("Analyzing Session Context:", sessionContext);
 
         try {
-            const systemPrompt = `You are an emotional analyst. Based on the user's answers, identify their mood. 
-            Choose EXACTLY ONE from this list: [happy, sad, romantic, energetic, relaxed, angry, alone, motivation]. 
-            Respond with ONLY the lowercase word.`;
+            const systemPrompt = `You are an emotional analyst. Based on the user's answers, identify their mood. Choose EXACTLY ONE from this list: [happy, sad, romantic, energetic, relaxed, angry, alone, motivation, devotional]. Respond with ONLY the lowercase word, nothing else.`;
 
             const response = await fetch('https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    inputs: `<s>[INST] ${systemPrompt} \\n\\nSession Context: ${sessionContext} [/INST] Mood Key:`,
-                    parameters: { max_new_tokens: 20, temperature: 0.1 }
+                    inputs: `<s>[INST] ${systemPrompt}\n\nSession Context:\n${sessionContext} [/INST] Mood Key:`,
+                    parameters: { max_new_tokens: 15, temperature: 0.1 }
                 })
             });
 
@@ -942,55 +992,105 @@ document.addEventListener('DOMContentLoaded', () => {
 
             console.log("Extracted Text:", detectedText);
 
-            // Robust matching
-            const validKeys = ['happy', 'sad', 'romantic', 'energetic', 'relaxed', 'angry', 'alone', 'motivation'];
-            let detectedKey = validKeys.find(key => detectedText.includes(key));
+            // Robust matching — prefer heuristic if AI returns nothing valid
+            const validKeys = ['happy', 'sad', 'romantic', 'energetic', 'relaxed', 'angry', 'alone', 'motivation', 'devotional'];
+            // Only use words from the last part (after [/INST] prompt) to avoid re-matching prompt text
+            const afterInst = detectedText.split('[/inst]').pop() || detectedText;
+            let detectedKey = validKeys.find(key => afterInst.includes(key));
 
             if (!detectedKey) {
-                console.log("AI failed to provide a valid key. Using heuristic fallback...");
-                detectedKey = heuristicMoodDetection();
+                console.log("AI did not provide a valid key. Using heuristic result.");
+                detectedKey = heuristicKey;
             }
 
             console.log("Final Detected Mood:", detectedKey);
-
-            setTimeout(() => {
-                aiLogo.classList.remove('active');
-                applyMood(detectedKey);
-                isDiscoveryMode = false;
-                discoveryBtn.classList.remove('active');
-                discoveryBtn.innerHTML = '<span class="sparkle">✨</span> Find Your Mood with Me';
-
-                const finalGreeting = {
-                    ta: `உங்கள் பதில்களின் அடிப்படையில், நீங்கள் ${detectedKey} மனநிலையில் இருப்பதாகத் தெரிகிறது!`,
-                    en: `Based on your answers, it seems you are in a ${detectedKey} mood!`
-                };
-                speak(finalGreeting[currentLang]);
-            }, 2000);
+            _applyDiscoveryResult(detectedKey);
 
         } catch (error) {
-            console.error("Mood analysis failed:", error);
-            const fallbackKey = heuristicMoodDetection();
-            applyMood(fallbackKey);
-            endMoodDiscovery();
+            console.error("Mood analysis failed (using heuristic):", error);
+            _applyDiscoveryResult(heuristicKey);
         }
     }
 
-    // Heuristic fallback to prevent 'Happy' bias
+    function _applyDiscoveryResult(detectedKey) {
+        setTimeout(() => {
+            aiLogo.classList.remove('active');
+            applyMood(detectedKey);
+            isDiscoveryMode = false;
+            discoveryBtn.classList.remove('active');
+
+            const startBtnText = currentLang === 'ta' ? "என்னுடன் உங்கள் மனநிலையைக் கண்டறியவும்" : "Find Your Mood with Me";
+            discoveryBtn.innerHTML = `<span class="sparkle">✨</span> ${startBtnText}`;
+
+            discoveryOptionsGrid.classList.remove('active');
+
+            const moodLabels = {
+                happy: currentLang === 'ta' ? 'மகிழ்ச்சி' : 'happy',
+                sad: currentLang === 'ta' ? 'சோகம்' : 'sad',
+                romantic: currentLang === 'ta' ? 'காதல்' : 'romantic',
+                energetic: currentLang === 'ta' ? 'உற்சாகம்' : 'energetic',
+                relaxed: currentLang === 'ta' ? 'அமைதி' : 'relaxed',
+                angry: currentLang === 'ta' ? 'கோபம்' : 'angry',
+                alone: currentLang === 'ta' ? 'தனிமை' : 'alone',
+                motivation: currentLang === 'ta' ? 'உத்வேகம்' : 'motivated',
+                devotional: currentLang === 'ta' ? 'பக்தி' : 'devotional'
+            };
+            const label = moodLabels[detectedKey] || detectedKey;
+            const finalGreeting = {
+                ta: `உங்கள் பதில்களின் அடிப்படையில், நீங்கள் ${label} மனநிலையில் இருப்பதாகத் தெரிகிறது!`,
+                en: `Based on your answers, it seems you are feeling ${label} right now!`
+            };
+            speak(finalGreeting[currentLang]);
+        }, 1500);
+    }
+
+    // Smart heuristic: score moods based on answer-option mood-map weights
     function heuristicMoodDetection() {
+        const scores = {};
+        const validKeys = ['happy', 'sad', 'romantic', 'energetic', 'relaxed', 'angry', 'alone', 'motivation', 'devotional'];
+        validKeys.forEach(k => scores[k] = 0);
+
+        const questions = discoveryQuestions[currentLang];
+
+        // Primary scoring: match each selected answer text against its moodMap
+        discoveryResponses.forEach((resp, qi) => {
+            if (!questions[qi]) return;
+            const options = questions[qi].options;
+            const moodMap = questions[qi].moodMap;
+            const idx = options.indexOf(resp);
+            if (idx !== -1 && moodMap && moodMap[idx]) {
+                scores[moodMap[idx]] = (scores[moodMap[idx]] || 0) + 2; // weight: 2 per direct match
+            }
+        });
+
+        // Secondary scoring: keyword scan across all answer text
         const text = discoveryResponses.join(' ').toLowerCase();
+        const keywordBoosts = {
+            angry: ['angry', 'frustrated', 'rage', 'thunder', 'irritated', 'இடி', 'கோபம்', 'எரிச்சல்'],
+            sad: ['sad', 'tired', 'pain', 'cry', 'rain', 'hopeless', 'சோர்வாக', 'மழை', 'சோகம்', 'வருத்தம்'],
+            energetic: ['energy', 'dance', 'ready', 'active', 'hyped', 'உற்சாகம்', 'ஆடத் தயார்', 'பரபரப்பு'],
+            romantic: ['love', 'someone special', 'crush', 'காதல்', 'நேசிக்கிறேன்', 'அன்பு'],
+            motivation: ['success', 'goals', 'work', 'focused', 'hustle', 'வெற்றி', 'உத்வேகம்', 'இலக்கு'],
+            relaxed: ['peaceful', 'calm', 'chill', 'vibing', 'easy', 'அமைதி', 'நிதானம்', 'ரிலாக்ஸ்'],
+            happy: ['celebration', 'joy', 'confetti', 'smile', 'கொண்டாட்டம்', 'மகிழ்ச்சி', 'சந்தோஷம்'],
+            alone: ['alone', 'hide', 'isolated', 'nobody', 'தனிமை', 'யாரும் இல்லை'],
+            devotional: ['prayer', 'god', 'temple', 'spiritual', 'meditate', 'பக்தி', 'கடவுள்', 'கோவில்', 'தியானம்']
+        };
 
-        // Keywords mapping
-        if (text.includes('angry') || text.includes('frustrated') || text.includes('thunder') || text.includes('இடி')) return 'angry';
-        if (text.includes('sad') || text.includes('tired') || text.includes('rain') || text.includes('மழை') || text.includes('சோர்வாக')) return 'sad';
-        if (text.includes('energy') || text.includes('dance') || text.includes('உற்சாகம்') || text.includes('ஆடத் தயார்')) return 'energetic';
-        if (text.includes('love') || text.includes('someone') || text.includes('காதல்')) return 'romantic';
-        if (text.includes('success') || text.includes('goals') || text.includes('வெற்றி') || text.includes('உத்வேகம்')) return 'motivation';
-        if (text.includes('peaceful') || text.includes('calm') || text.includes('vibing') || text.includes('அமைதி')) return 'relaxed';
-        if (text.includes('excited') || text.includes('celebration') || text.includes('கொண்டாட்டம்')) return 'energetic';
-        if (text.includes('alone') || text.includes('hide') || text.includes('தனிமை')) return 'alone';
-        if (text.includes('pray') || text.includes('god') || text.includes('temple') || text.includes('spiritual') || text.includes('பக்தி') || text.includes('கடவுள்')) return 'devotional';
+        for (const [mood, kwList] of Object.entries(keywordBoosts)) {
+            kwList.forEach(kw => { if (text.includes(kw)) scores[mood] += 1; });
+        }
 
-        return 'happy'; // Absolute last resort
+        console.log("Mood scores:", scores);
+
+        // Pick the mood with highest score
+        let best = 'happy', bestScore = -1;
+        for (const [mood, score] of Object.entries(scores)) {
+            if (score > bestScore) { bestScore = score; best = mood; }
+        }
+
+        // If all scores are 0, default to happy
+        return best;
     }
 
     function setLanguage(lang) {
@@ -1000,12 +1100,25 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update UI buttons
         langBtns.forEach(b => b.classList.toggle('active', b.getAttribute('data-lang') === lang));
 
+        // Update Discovery Button if active
+        if (isDiscoveryMode) {
+            const stopBtnText = currentLang === 'ta' ? "அமைர்வை நிறுத்து" : "Stop Session";
+            discoveryBtn.innerHTML = `<span class="sparkle">❌</span> ${stopBtnText}`;
+            // Refresh question text but keep progress
+            const currentQ = discoveryQuestions[currentLang][discoveryStep].q;
+            typeWriter(aiResponse, currentQ);
+            renderDiscoveryOptions(discoveryStep);
+        } else {
+            const startBtnText = currentLang === 'ta' ? "என்னுடன் உங்கள் மனநிலையைக் கண்டறியவும்" : "Find Your Mood with Me";
+            discoveryBtn.innerHTML = `<span class="sparkle">✨</span> ${startBtnText}`;
+        }
+
         // Update Voice
         updateVoiceForLanguage();
 
         // Re-apply current mood if active to refresh content language
         if (currentMood) {
-            applyMood(currentMood, true);
+            applyMood(currentMood, !isDiscoveryMode); // Don't animate if coming from discovery completion
         } else {
             // Update initial greeting
             const greeting = {
@@ -1013,7 +1126,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 en: "Hello! I'm your companion. How are you feeling today?"
             };
             aiResponse.textContent = greeting[lang];
-            speak(greeting[lang]);
+            // Only speak if user explicitly switched (avoid double speech on load)
+            if (lang !== localStorage.getItem('appLang')) speak(greeting[lang]);
         }
     }
 
@@ -1062,8 +1176,15 @@ document.addEventListener('DOMContentLoaded', () => {
             hasPlayedVideoInSession = true;
             situationSection.classList.remove('hidden');
 
+            const wasPlaying = !audioPlayer.paused;
+
             // Set up pending action to be triggered after video
-            pendingMoodAction = () => executeMoodResponse(moodKey, true);
+            pendingMoodAction = () => {
+                executeMoodResponse(moodKey, true);
+                if (wasPlaying) {
+                    audioPlayer.play().catch(e => console.warn("Could not resume audio after video."));
+                }
+            };
 
             // Show video immediately
             playSituationVideo();
@@ -1250,15 +1371,18 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        let detected = null;
-
-        // 1. Check for specific mood keywords
+        // Score-based keyword detection — count all matches, pick the highest
+        const scores = {};
         for (const [key, data] of Object.entries(moods)) {
-            if (data.keywords.some(kw => input.includes(kw))) {
-                detected = key;
-                break;
-            }
+            scores[key] = data.keywords.filter(kw => input.includes(kw)).length;
         }
+
+        const topMood = Object.entries(scores).reduce((best, [key, score]) =>
+            score > best[1] ? [key, score] : best, ['', 0]);
+
+        let detected = topMood[1] > 0 ? topMood[0] : null;
+
+        console.log("Keyword scores:", scores, "→ detected:", detected);
 
         if (detected) {
             applyMood(detected);
@@ -1308,6 +1432,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const finalResp = matchedResponse[currentLang];
             typeWriter(aiResponse, finalResp);
             speak(finalResp);
+            // Save to history too even if hardcoded
+            chatHistory.push({ role: 'user', text: input });
+            chatHistory.push({ role: 'assistant', text: finalResp });
             return;
         }
 
@@ -1318,24 +1445,26 @@ document.addEventListener('DOMContentLoaded', () => {
         let aiText = '';
 
         try {
-            const systemPrompt = `You are the Mood Playground Universal AI, powered by Loki Technologies. You are an expert in everything: world history, global politics, advanced science, philosophy, technology, and any other topic. The user will ask questions in ${currentLang === 'ta' ? 'Tamil' : 'English'}. You MUST respond in ${currentLang === 'ta' ? 'Tamil' : 'English'}. You are helpful, highly intelligent, and provide comprehensive answers. Do not limit your knowledge.`;
+            const systemPrompt = `You are the Mood Playground Universal AI, powered by Loki Technologies. You are an expert in everything (Science, History, Tech, etc.). Respond in ${currentLang === 'ta' ? 'Tamil' : 'English'}. Be helpful, intelligent, and concise.`;
 
-            // Primary API with timeout
+            // Build history context (last 6 messages)
+            const contextLimit = 6;
+            const recentHistory = chatHistory.slice(-contextLimit);
+            const historyText = recentHistory.map(h => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.text}`).join('\n');
+            const fullPrompt = `${systemPrompt}\n\n${historyText}\nUser: ${input}\nAssistant:`;
+
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+            const timeoutId = setTimeout(() => controller.abort(), 12000);
 
             try {
                 const response = await fetch('https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        inputs: `${systemPrompt}\\n\\nUser: ${input}\\n\\nAssistant:`,
+                        inputs: `<s>[INST] ${fullPrompt} [/INST]`,
                         parameters: {
-                            max_new_tokens: 150,
+                            max_new_tokens: 200,
                             temperature: 0.7,
-                            top_p: 0.9,
                             return_full_text: false
                         }
                     }),
@@ -1344,83 +1473,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 clearTimeout(timeoutId);
 
-                if (!response.ok) {
-                    console.error('Primary API HTTP error:', response.status, response.statusText);
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
+                if (!response.ok) throw new Error('API unstable or busy');
 
                 const result = await response.json();
-                console.log('Primary API response:', result);
-
-                // Handle different response formats
                 if (Array.isArray(result) && result[0]?.generated_text) {
                     aiText = result[0].generated_text.trim();
                 } else if (result.generated_text) {
                     aiText = result.generated_text.trim();
-                } else if (result.error) {
-                    console.log('Primary API error:', result.error);
-                    throw new Error(result.error);
-                } else {
-                    throw new Error('Unexpected response format');
                 }
 
-                // Clean up the response
                 aiText = aiText.replace(/^(User:|Assistant:)/gi, '').trim();
 
             } catch (primaryError) {
-                console.error("Primary API failed:", primaryError.message, primaryError);
-
-                // Fallback: Try simpler model
-                try {
-                    const fallbackResponse = await fetch('https://api-inference.huggingface.co/models/google/flan-t5-base', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            inputs: `Answer this in ${currentLang === 'ta' ? 'Tamil' : 'English'}: ${input}`,
-                            parameters: {
-                                max_length: 100
-                            }
-                        })
-                    });
-
-                    if (!fallbackResponse.ok) {
-                        console.error('Fallback API HTTP error:', fallbackResponse.status, fallbackResponse.statusText);
-                        throw new Error(`Fallback HTTP ${fallbackResponse.status}`);
-                    }
-
-                    const fallbackResult = await fallbackResponse.json();
-                    console.log('Fallback API response:', fallbackResult);
-
-                    if (Array.isArray(fallbackResult) && fallbackResult[0]?.generated_text) {
-                        aiText = fallbackResult[0].generated_text.trim();
-                    } else if (fallbackResult.generated_text) {
-                        aiText = fallbackResult.generated_text.trim();
-                    } else {
-                        console.warn('Fallback API returned unexpected format, using local response');
-                        aiText = generateLocalResponse(input);
-                    }
-                } catch (fallbackError) {
-                    console.error('Fallback API also failed:', fallbackError.message, fallbackError);
-                    console.log('Using local response generator');
-                    // Use local intelligent fallback
-                    aiText = generateLocalResponse(input);
-                }
+                console.warn("Primary AI failed, using intelligent fallback");
+                aiText = generateLocalResponse(input);
             }
 
             if (aiText) {
+                // Save to history
+                chatHistory.push({ role: 'user', text: input });
+                chatHistory.push({ role: 'assistant', text: aiText });
+
+                // Prune history (keep last 12 to allow 6 exchanges)
+                if (chatHistory.length > 12) chatHistory = chatHistory.slice(-12);
+
                 typeWriter(aiResponse, aiText);
                 speak(aiText);
-            } else {
-                throw new Error('Empty response');
             }
 
         } catch (error) {
-            console.error("AI API Error:", error);
-            const fallback = currentLang === 'ta' ? "தற்போது என்னால் இணைக்க முடியவில்லை, ஆனால் உங்களுடன் இருக்கிறேன்! உங்கள் மனநிலையைப் பற்றி என்னிடம் கேளுங்கள்." : "I'm having a little trouble connecting to my brain right now, but I'm still here to vibe with you! Try asking me about your mood.";
-            aiResponse.textContent = fallback;
-            speak(fallback);
+            console.error("Chat Error:", error);
+            let errorMessage = "உங்களுடன் உரையாடுவதில் மகிழ்ச்சி! உங்கள் மனநிலையைப் பற்றி சொல்லுங்கள்."; // Default Tamil
+            if (currentLang === 'en') errorMessage = "I love chatting with you! Tell me more about your mood.";
+
+            if (window.location.protocol === 'file:') {
+                errorMessage = currentLang === 'ta' ?
+                    "மன்னிக்கவும், பிரவுசர் பாதுகாப்புக் காரணமாக AI வேலை செய்யவில்லை. தயவுசெய்து 'Local Server' பயன்படுத்தவும்." :
+                    "Browser security (CORS) is blocking the AI. Please run the project using a local server (like Live Server or Python).";
+            }
+
+            aiResponse.textContent = errorMessage;
+            speak(errorMessage);
         } finally {
             aiLogo.classList.remove('active');
         }
