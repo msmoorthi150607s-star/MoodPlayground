@@ -1357,12 +1357,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Music Control Recognition
-        const stopKeywords = ['stop music', 'music stop', 'pause music', 'off music', 'இசையை நிறுத்து', 'பாடலை நிறுத்து', 'நிறுத்து', 'இசை வேண்டாம்'];
-        const playKeywords = ['play music', 'start music', 'music on', 'இசையை ஒலிக்கச் செய்', 'பாடலை ஒடு', 'இசை வேண்டும்', 'ஒலிக்கச் செய்'];
+        const stopKeywords = ['இசையை நிறுத்து', 'பாடலை நிறுத்து', 'நிறுத்து', 'இசை வேண்டாம்'];
+        const playKeywords = ['start music', 'music on', 'இசையை ஒலிக்கச் செய்', 'பாடலை ஒடு', 'இசை வேண்டும்', 'ஒலிக்கச் செய்'];
         const yesKeywords = ['yes', 'yeah', 'sure', 'okay', 'yep', 'ok', 'ஆம்', 'சரி', 'நிச்சயமாக'];
         const noKeywords = ['no', 'not now', 'nah', 'இல்லை', 'வேண்டாம்'];
 
-        if (stopKeywords.some(kw => input.includes(kw))) {
+        const hasStop = input.includes('stop') || input.includes('நிறுத்து');
+        const hasMusic = input.includes('music') || input.includes('இசை') || input.includes('பாடல்');
+        const hasPlay = input.includes('play') || input.includes('ஒலி') || input.includes('தொடங்கு');
+
+        if ((hasStop && hasMusic) || stopKeywords.some(kw => input.includes(kw))) {
             audioPlayer.pause();
             playPauseBtn.textContent = '▶️';
             playerBar.classList.add('paused');
@@ -1372,7 +1376,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (playKeywords.some(kw => input.includes(kw)) || (pendingMusicMood && yesKeywords.some(kw => input.includes(kw)))) {
+        if ((hasPlay && hasMusic) || playKeywords.some(kw => input.includes(kw)) || (pendingMusicMood && yesKeywords.some(kw => input.includes(kw)))) {
             const moodToPlay = pendingMusicMood || currentMood || 'happy';
             playMoodMusic(moodToPlay);
             pendingMusicMood = null;
@@ -1643,5 +1647,22 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         recognition.start();
+    }
+
+    // Scan Me QR Code Toggle
+    const scanBtn = document.getElementById('scan-me-btn');
+    const qrModal = document.getElementById('qr-modal');
+    const closeQrBtn = document.getElementById('close-qr-modal');
+
+    if (scanBtn && qrModal && closeQrBtn) {
+        scanBtn.addEventListener('click', () => {
+            qrModal.classList.add('active');
+        });
+        closeQrBtn.addEventListener('click', () => {
+            qrModal.classList.remove('active');
+        });
+        qrModal.addEventListener('click', (e) => {
+            if (e.target === qrModal) qrModal.classList.remove('active');
+        });
     }
 });
