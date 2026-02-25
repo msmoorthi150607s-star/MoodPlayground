@@ -1213,8 +1213,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Sequence: Speak -> Then Ask for music
             const musicPrompt = {
-                ta: "நான் உங்களுக்காக இந்த மனநிலைக்கு ஏற்ற இசையை ஒலிக்கச் செய்யவா? (ஆம்/இல்லை)",
-                en: "Would you like me to play some music for this mood? (Yes/No)"
+                ta: "நான் உங்களுக்காக இந்த மனநிலைக்கு ஏற்ற இசையை ஒலிக்கச் செய்யவா? (ஆம் அல்லது இல்லை)",
+                en: "Would you like me to play some music for this mood? (Yes or No)"
             };
 
             const fullResponse = `${responseText} ${musicPrompt[currentLang]}`;
