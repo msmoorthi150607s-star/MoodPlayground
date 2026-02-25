@@ -37,6 +37,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const videoPrevBtn = document.getElementById('video-prev-btn');
     const videoPlayPauseBtn = document.getElementById('video-play-pause-btn');
     const videoNextBtn = document.getElementById('video-next-btn');
+    const qrModal = document.getElementById('qr-modal');
+    const qrBtn = document.getElementById('scan-me-btn');
+    const closeQrBtn = document.getElementById('close-qr-modal');
 
     // State Management
     let currentLang = localStorage.getItem('appLang') || 'ta';
@@ -814,6 +817,21 @@ document.addEventListener('DOMContentLoaded', () => {
         playNextVideo();
     });
 
+    // QR Modal Controls
+    qrBtn.addEventListener('click', () => {
+        qrModal.classList.add('active');
+    });
+
+    closeQrBtn.addEventListener('click', () => {
+        qrModal.classList.remove('active');
+    });
+
+    qrModal.addEventListener('click', (e) => {
+        if (e.target === qrModal) {
+            qrModal.classList.remove('active');
+        }
+    });
+
     // Close modal on click outside content
     videoModal.addEventListener('click', (e) => {
         if (e.target === videoModal) {
@@ -1347,8 +1365,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function detectMoodFromText(text) {
-        const input = text.toLowerCase().trim();
+        // 1. Standardize and Clean Input
+        let input = text.toLowerCase().trim();
+        // Remove trailing punctuation common in voice transcripts
+        input = input.replace(/[.?!\s]+$/, '');
+
         if (!input) return;
+
+        console.log("Processing input:", input);
 
         // Route to discovery mode if active
         if (isDiscoveryMode) {
@@ -1356,17 +1380,109 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Music Control Recognition
-        const stopKeywords = ['இசையை நிறுத்து', 'பாடலை நிறுத்து', 'நிறுத்து', 'இசை வேண்டாம்'];
-        const playKeywords = ['start music', 'music on', 'இசையை ஒலிக்கச் செய்', 'பாடலை ஒடு', 'இசை வேண்டும்', 'ஒலிக்கச் செய்'];
+        // 2. Score-based mood detection (Primary Priority)
+        const moodScores = {};
+        for (const [key, data] of Object.entries(moods)) {
+            // Count matches where keyword is either the whole input or surrounded by non-word chars
+            moodScores[key] = data.keywords.filter(kw => {
+                const regex = new RegExp(`(^|\\P{L})${kw}($|\\P{L})`, 'u');
+                return regex.test(input);
+            }).length;
+        }
+
+        const topMood = Object.entries(moodScores).reduce((best, [key, score]) =>
+            score > best[1] ? [key, score] : best, ['', 0]);
+
+        let detectedMood = topMood[1] > 0 ? topMood[0] : null;
+        console.log("Mood scores:", moodScores, "→ detected:", detectedMood);
+
+        // 3. Name detection (Lower priority than mood)
+        const nameKeywords = ['my name is', 'i am', "i'm", 'பெயர்', 'நாந்தான்', 'iam', 'நான் ', 'எனது பெயர்'];
+        let detectedName = null;
+
+        for (const kw of nameKeywords) {
+            if (input.includes(kw)) {
+                const parts = input.split(kw);
+                if (parts.length > 1 && parts[1].trim()) {
+                    const candidate = parts[1].trim().split(/\s+/)[0];
+                    // CRITICAL: If the "name" is actually a mood keyword, it's probably a mood statement, not a name.
+                    const isMoodKeyword = Object.values(moods).some(m => m.keywords.includes(candidate.toLowerCase()));
+
+                    if (!isMoodKeyword) {
+                        detectedName = candidate;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 4. Feature Commands (Discovery, Scan Me, Language, Videos)
+        const discoveryKeywords = ['find your mood', 'start discovery', 'discovery session', 'மனநிலை கண்டறியவும்', 'ஆய்வு', 'start session'];
+        const scanMeKeywords = ['scan me', 'show scan me', 'show qr', 'mobile version', 'qr கோடு', 'qr code'];
+        const videoKeywords = ['show situation video', 'play video', 'watch video', 'வீடியோ', 'காட்சி', 'situation video'];
+        const englishKeywords = ['switch to english', 'change to english', 'english', 'ஆங்கிலம்'];
+        const tamilKeywords = ['switch to tamil', 'change to tamil', 'tamil', 'தமிழ்', 'தமிழ் மாற்றவும்'];
+
+        if (discoveryKeywords.some(kw => input.includes(kw))) {
+            if (!isDiscoveryMode) startMoodDiscovery();
+            return;
+        }
+
+        if (scanMeKeywords.some(kw => input.includes(kw))) {
+            if (qrModal) qrModal.classList.add('active');
+            const msg = currentLang === 'ta' ? "நிச்சயமாக, இதோ QR குறியீடு." : "Sure, here's the QR code.";
+            typeWriter(aiResponse, msg);
+            speak(msg);
+            return;
+        }
+
+        if (videoKeywords.some(kw => input.includes(kw))) {
+            if (currentMood && situationVideos[currentMood]) {
+                playSituationVideo();
+            } else {
+                const msg = currentLang === 'ta' ? "தயவுசெய்து முதலில் ஒரு மனநிலையைத் தேர்ந்தெடுக்கவும்." : "Please select a mood first to see situation videos.";
+                typeWriter(aiResponse, msg);
+                speak(msg);
+            }
+            return;
+        }
+
+        if (englishKeywords.some(kw => input.includes(kw))) {
+            setLanguage('en');
+            const msg = "Switched to English.";
+            typeWriter(aiResponse, msg);
+            speak(msg);
+            return;
+        }
+
+        if (tamilKeywords.some(kw => input.includes(kw))) {
+            setLanguage('ta');
+            const msg = "தமிழுக்கு மாற்றப்பட்டது.";
+            typeWriter(aiResponse, msg);
+            speak(msg);
+            return;
+        }
+
+        // 5. Music Control Recognition (Specific context)
+        const stopKeywords = ['இசையை நிறுத்து', 'பாடலை நிறுத்து', 'நிறுத்து', 'இசை வேண்டாம்', 'stop music', 'stop the music', 'pause music'];
+        const playKeywords = ['start music', 'music on', 'இசையை ஒலிக்கச் செய்', 'பாடலை ஒடு', 'இசை வேண்டும்', 'ஒலிக்கச் செய்', 'play music', 'play some music'];
         const yesKeywords = ['yes', 'yeah', 'sure', 'okay', 'yep', 'ok', 'ஆம்', 'சரி', 'நிச்சயமாக'];
         const noKeywords = ['no', 'not now', 'nah', 'இல்லை', 'வேண்டாம்'];
 
-        const hasStop = input.includes('stop') || input.includes('நிறுத்து');
-        const hasMusic = input.includes('music') || input.includes('இசை') || input.includes('பாடல்');
-        const hasPlay = input.includes('play') || input.includes('ஒலி') || input.includes('தொடங்கு');
+        // Helper for music intent
+        const hasStopIntent = stopKeywords.some(kw => input.includes(kw)) || (input.includes('stop') && (input.includes('music') || input.includes('song')));
+        const hasPlayIntent = playKeywords.some(kw => input.includes(kw)) || (input.includes('play') && (input.includes('music') || input.includes('song')));
 
-        if ((hasStop && hasMusic) || stopKeywords.some(kw => input.includes(kw))) {
+        // Logic execution flow
+
+        // Priority 1: Direct Mood Match
+        if (detectedMood) {
+            applyMood(detectedMood);
+            return;
+        }
+
+        // Priority 2: Music Controls
+        if (hasStopIntent) {
             audioPlayer.pause();
             playPauseBtn.textContent = '▶️';
             playerBar.classList.add('paused');
@@ -1376,7 +1492,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if ((hasPlay && hasMusic) || playKeywords.some(kw => input.includes(kw)) || (pendingMusicMood && yesKeywords.some(kw => input.includes(kw)))) {
+        if (hasPlayIntent || (pendingMusicMood && yesKeywords.some(kw => {
+            const regex = new RegExp(`(^|\\P{L})${kw}($|\\P{L})`, 'u');
+            return regex.test(input);
+        }))) {
             const moodToPlay = pendingMusicMood || currentMood || 'happy';
             playMoodMusic(moodToPlay);
             pendingMusicMood = null;
@@ -1386,7 +1505,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (pendingMusicMood && noKeywords.some(kw => input.includes(kw))) {
+        if (pendingMusicMood && noKeywords.some(kw => {
+            const regex = new RegExp(`(^|\\P{L})${kw}($|\\P{L})`, 'u');
+            return regex.test(input);
+        })) {
             pendingMusicMood = null;
             const msg = currentLang === 'ta' ? "சரி, உங்களுக்கு இசை தேவைப்படும்போது சொல்லுங்கள்." : "Alright, let me know when you'd like some music.";
             typeWriter(aiResponse, msg);
@@ -1394,20 +1516,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Check for Name detection
-        const nameKeywords = ['my name is', 'i am', 'பெயர்', 'நாந்தான்', 'iam', 'நான் ', 'எனது பெயர்'];
-        let detectedName = null;
-
-        for (const kw of nameKeywords) {
-            if (input.includes(kw)) {
-                const parts = input.split(kw);
-                if (parts.length > 1 && parts[1].trim()) {
-                    detectedName = parts[1].trim().split(' ')[0]; // Take first word after keyword
-                    break;
-                }
-            }
-        }
-
+        // Priority 3: Personal Greeting
         if (detectedName) {
             const welcomeMsg = {
                 ta: `வணக்கம் ${detectedName}! உங்களை வரவேப்பதில் மகிழ்ச்சி. இன்று உங்கள் மனநிலை எப்படி இருக்கிறது?`,
@@ -1419,25 +1528,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Score-based keyword detection — count all matches, pick the highest
-        const scores = {};
-        for (const [key, data] of Object.entries(moods)) {
-            scores[key] = data.keywords.filter(kw => input.includes(kw)).length;
-        }
-
-        const topMood = Object.entries(scores).reduce((best, [key, score]) =>
-            score > best[1] ? [key, score] : best, ['', 0]);
-
-        let detected = topMood[1] > 0 ? topMood[0] : null;
-
-        console.log("Keyword scores:", scores, "→ detected:", detected);
-
-        if (detected) {
-            applyMood(detected);
-        } else {
-            // 2. If no mood detected, treat as a general question/statement
-            await handleGeneralQuery(input);
-        }
+        // Priority 4: General Knowledge / AI
+        await handleGeneralQuery(input);
     }
 
     async function handleGeneralQuery(input) {
@@ -1630,9 +1722,12 @@ document.addEventListener('DOMContentLoaded', () => {
         aiLogo.classList.add('active');
 
         recognition.onresult = async (event) => {
-            const transcript = event.results[0][0].transcript;
+            const transcript = event.results[0][0].transcript.trim();
             moodTextInput.value = transcript;
-            await detectMoodFromText(transcript);
+            // Add a small delay for visual feedback in the input field
+            setTimeout(async () => {
+                await detectMoodFromText(transcript);
+            }, 300);
         };
 
         recognition.onerror = () => {
@@ -1649,20 +1744,4 @@ document.addEventListener('DOMContentLoaded', () => {
         recognition.start();
     }
 
-    // Scan Me QR Code Toggle
-    const scanBtn = document.getElementById('scan-me-btn');
-    const qrModal = document.getElementById('qr-modal');
-    const closeQrBtn = document.getElementById('close-qr-modal');
-
-    if (scanBtn && qrModal && closeQrBtn) {
-        scanBtn.addEventListener('click', () => {
-            qrModal.classList.add('active');
-        });
-        closeQrBtn.addEventListener('click', () => {
-            qrModal.classList.remove('active');
-        });
-        qrModal.addEventListener('click', (e) => {
-            if (e.target === qrModal) qrModal.classList.remove('active');
-        });
-    }
 });

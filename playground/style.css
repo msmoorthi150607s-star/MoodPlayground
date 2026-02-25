@@ -46,12 +46,6 @@
     --accent-glow: rgba(230, 57, 70, 0.4);
 }
 
-.mood-excited {
-    --primary-color: #8338ec;
-    --bg-color: #1a0035;
-    --accent-glow: rgba(131, 56, 236, 0.4);
-}
-
 .mood-alone {
     --primary-color: #94a3b8;
     --bg-color: #0f172a;
@@ -62,6 +56,12 @@
     --primary-color: #ff4d00;
     --bg-color: #3d0000;
     --accent-glow: rgba(255, 77, 0, 0.4);
+}
+
+.mood-devotional {
+    --primary-color: #f59e0b;
+    --bg-color: #3d2400;
+    --accent-glow: rgba(245, 158, 11, 0.4);
 }
 
 * {
