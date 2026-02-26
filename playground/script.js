@@ -1,5 +1,5 @@
 /**
- * Mood Playground - Loki Technologies
+ * Mood Playground - TeamFive
  * Core JavaScript Logic
  */
 
@@ -1539,14 +1539,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 keywords: ['who are you', 'your name', 'about yourself', 'யார் நீ'],
                 response: {
                     ta: "நான் உங்கள் மூட் பிளேகிரவுண்ட் நண்பன், லோகி டெக்னாலஜிஸ் மூலம் உருவாக்கப்பட்டவன்! உங்களுடன் உரையாடவும் சிறந்த பாடல்களை ஒலிக்கச் செய்யவும் நான் இங்கே இருக்கிறேன்.",
-                    en: "I'm your Mood Playground companion, created by Loki Technologies! I'm here to vibe with you and play some great music."
+                    en: "I'm your Mood Playground companion, created by TeamFive! I'm here to vibe with you and play some great music."
                 }
             },
             {
                 keywords: ['loki technologies', 'who made you', 'உன்னை உருவாக்கியது யார்'],
                 response: {
                     ta: "நான் லோகி டெக்னாலஜிஸின் சிறந்த சிந்தனையாளர்களால் அன்புடன் உருவாக்கப்பட்டேன். அவர்கள் உங்களைப் போன்ற மகிழ்ச்சியான அனுபவங்களை உருவாக்குவதில் சிறந்தவர்கள்!",
-                    en: "I was crafted with love by the brilliant minds at Loki Technologies. They specialize in creating professional, playful experiences like this one!"
+                    en: "I was crafted with love by the brilliant minds at TeamFive. They specialize in creating professional, playful experiences like this one!"
                 }
             },
             {
@@ -1585,7 +1585,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let aiText = '';
 
         try {
-            const systemPrompt = `You are the Mood Playground Universal AI, powered by Loki Technologies. You are an expert in everything (Science, History, Tech, etc.). Respond in ${currentLang === 'ta' ? 'Tamil' : 'English'}. Be helpful, intelligent, and concise.`;
+            const systemPrompt = `You are the Mood Playground Universal AI, powered by TeamFive. You are an expert in everything (Science, History, Tech, etc.). Respond in ${currentLang === 'ta' ? 'Tamil' : 'English'}. Be helpful, intelligent, and concise.`;
 
             // Build history context (last 6 messages)
             const contextLimit = 6;

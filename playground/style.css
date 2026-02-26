@@ -132,6 +132,13 @@ body {
 
 .brand {
     color: var(--primary-color);
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    background: linear-gradient(135deg, var(--primary-color), #a78bfa);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 .header-actions {
